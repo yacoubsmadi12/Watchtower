@@ -14,12 +14,18 @@ function generateRandomLog(): string {
   const user = MOCK_USERS[Math.floor(Math.random() * MOCK_USERS.length)];
   const op = MOCK_OPS[Math.floor(Math.random() * MOCK_OPS.length)];
   
-  if (type < 0.4) {
+  if (type < 0.3) {
     // CEF
     return `CEF:0|Huawei|NMS|V1.0|100|Operation Log|5|src=${src} user=${user} operation=${op} msg=Performed action successfully`;
-  } else if (type < 0.7) {
+  } else if (type < 0.5) {
     // KV
     return `timestamp="${new Date().toISOString()}" src="${src}" user="${user}" operation="${op}" status="success"`;
+  } else if (type < 0.75) {
+    // Huawei CSV
+    const dateStr = new Date().toLocaleString('en-GB'); // DD/MM/YYYY ...
+    const level = Math.random() > 0.5 ? 'Warning' : (Math.random() > 0.5 ? 'Minor' : 'Risk');
+    // Operation,Level,Operator,Time,Source,Terminal IP Address,Operation Object,Result,Details
+    return `${op},${level},,"   ${dateStr}",NMS_Core,${src},${op}_Obj,Successful,"Function: [Configuration] ${op} executed successfully."`;
   } else {
     // Syslog
     return `Nov 27 10:00:00 ${src} systemd[1]: Started Session ${Math.floor(Math.random() * 1000)} of user ${user}.`;
