@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, AlertTriangle, FileText, Settings, Shield, Activity } from "lucide-react";
+import { LayoutDashboard, AlertTriangle, FileText, Settings, Shield, Activity, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -8,6 +8,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     { icon: AlertTriangle, label: "Alerts", href: "/alerts" },
+    { icon: BarChart3, label: "Reports", href: "/reports" },
     { icon: FileText, label: "Logs", href: "/logs" },
     { icon: Shield, label: "Rules", href: "/rules" },
     { icon: Settings, label: "Settings", href: "/settings" },

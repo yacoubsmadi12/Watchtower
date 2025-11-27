@@ -9,6 +9,7 @@ import AlertsPage from "@/pages/alerts";
 import SettingsPage from "@/pages/settings";
 import LogsPage from "@/pages/logs";
 import RulesPage from "@/pages/rules";
+import ReportsPage from "@/pages/reports";
 
 function Router() {
   return (
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/alerts" component={AlertsPage} />
       <Route path="/logs" component={LogsPage} />
+      <Route path="/reports" component={ReportsPage} />
       <Route path="/rules" component={RulesPage} />
       <Route path="/settings" component={SettingsPage} />
       <Route component={NotFound} />

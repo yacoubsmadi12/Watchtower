@@ -1,16 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Event, Alert } from '../lib/mock-data';
+import { Event, Alert, MONITORED_SYSTEMS } from '../lib/mock-data';
 import { LogParser } from '../lib/parser';
 import { RulesEngine } from '../lib/rules-engine';
 
 // Mock generators
-const MOCK_SOURCES = ['192.168.1.10', '192.168.1.12', '10.0.0.5', 'huawei-nms-core'];
 const MOCK_USERS = ['admin', 'ops_user', 'unknown', 'audit_view'];
 const MOCK_OPS = ['LOGIN', 'LOGOUT', 'DELETE_LOGS', 'MODIFY_CONFIG', 'VIEW_DASHBOARD', 'ROOT_LOGIN', 'DB_QUERY'];
 
 function generateRandomLog(): string {
   const type = Math.random();
-  const src = MOCK_SOURCES[Math.floor(Math.random() * MOCK_SOURCES.length)];
+  // Pick a random registered system to be the source
+  const targetSystem = MONITORED_SYSTEMS[Math.floor(Math.random() * MONITORED_SYSTEMS.length)];
+  const src = targetSystem.ip;
+  const srcName = targetSystem.name;
+  
   const user = MOCK_USERS[Math.floor(Math.random() * MOCK_USERS.length)];
   const op = MOCK_OPS[Math.floor(Math.random() * MOCK_OPS.length)];
   
@@ -25,7 +28,7 @@ function generateRandomLog(): string {
     const dateStr = new Date().toLocaleString('en-GB'); // DD/MM/YYYY ...
     const level = Math.random() > 0.5 ? 'Warning' : (Math.random() > 0.5 ? 'Minor' : 'Risk');
     // Operation,Level,Operator,Time,Source,Terminal IP Address,Operation Object,Result,Details
-    return `${op},${level},,"   ${dateStr}",NMS_Core,${src},${op}_Obj,Successful,"Function: [Configuration] ${op} executed successfully."`;
+    return `${op},${level},,"   ${dateStr}",${srcName},${src},${op}_Obj,Successful,"Function: [Configuration] ${op} executed successfully."`;
   } else {
     // Syslog
     return `Nov 27 10:00:00 ${src} systemd[1]: Started Session ${Math.floor(Math.random() * 1000)} of user ${user}.`;
