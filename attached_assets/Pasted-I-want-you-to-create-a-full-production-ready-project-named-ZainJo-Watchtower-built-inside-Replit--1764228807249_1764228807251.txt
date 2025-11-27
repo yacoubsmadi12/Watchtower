@@ -1,0 +1,254 @@
+I want you to create a full production-ready project named “ZainJo Watchtower”, built inside Replit.
+This system will function as an Operation Log Monitoring and Analysis Platform similar to a lightweight version of Wazuh, specifically designed to receive and analyze operation logs coming from Huawei NMS.
+
+The backend will run in Replit, and the database will be MySQL hosted on my Ubuntu VM (not local SQLite).
+
+🎯 Project Purpose
+
+Build a complete monitoring platform with the following capabilities:
+
+1. Receive and ingest logs from Huawei NMS
+
+Through Syslog UDP (port 1514)
+
+Through HTTP POST API (/api/logs)
+
+2. Parse the logs
+
+Huawei NMS logs can come in multiple formats, especially:
+
+CEF format
+
+Key-Value (KV_EXT) format
+
+Generic syslog text
+
+The parser must automatically try:
+
+CEF
+
+Key-value pairs
+
+Fallback to raw syslog text
+
+3. Analyze logs using a Rules Engine
+
+The Rules Engine must support:
+
+Role-Based Permissions
+
+Forbidden vs allowed operations
+
+Critical / sensitive operation detection
+
+Time-based rules (optional)
+
+Simple anomaly detection (e.g., repeated unusual operations)
+
+Correlation rules (e.g., suspicious sequences of events)
+
+4. Store all logs and alerts in MySQL
+
+My MySQL server runs on my Ubuntu VM, so the Replit project must connect to it using environment variables.
+
+5. Generate alerts
+
+Alerts are generated whenever:
+
+A user performs an operation outside his role permissions
+
+Sensitive operations are performed
+
+Correlation rules are matched
+
+6. Provide a Dashboard UI
+
+A simple HTML/JS dashboard inside static/index.html that:
+
+Displays recent events
+
+Displays alerts
+
+Auto-refresh every 3 seconds
+
+7. Expose REST API endpoints
+
+Required endpoints:
+
+Method	Endpoint	Description
+POST	/api/logs	Receive logs over HTTP
+GET	/api/events	Retrieve last 200 events
+GET	/api/alerts	Retrieve last 200 alerts
+GET	/api/health	Health check
+🗄️ Database Structure (MySQL)
+
+Create these tables:
+
+roles
+
+id
+
+name
+
+users
+
+id
+
+username
+
+role_id
+
+permissions
+
+id
+
+role_id
+
+operation
+
+allowed (1/0)
+
+severity
+
+events
+
+id
+
+timestamp
+
+source
+
+raw
+
+parsed (JSON)
+
+alerts
+
+id
+
+event_id
+
+rule
+
+severity
+
+created_at
+
+Use MySQL connector or SQLAlchemy. No SQLite.
+
+🧩 Project Structure
+
+Create the following files:
+
+server.py
+database.py
+rules_engine.py
+parser.py
+static/index.html
+requirements.txt
+README.md
+.env example
+
+server.py
+
+Flask backend
+
+Syslog UDP listener running in a background thread
+
+HTTP ingestion endpoint
+
+Routes for events and alerts
+
+Connect to MySQL using environment variables
+
+parser.py
+
+Try parsing logs in this order:
+
+CEF
+
+Key-value
+
+Fallback syslog
+
+rules_engine.py
+
+Check user permissions
+
+Detect forbidden operations
+
+Detect sensitive operations
+
+Simple correlation
+
+Simple anomaly detection
+
+Return alerts list
+
+database.py
+
+Connection helper for MySQL
+
+Functions to insert events and alerts
+
+🔐 Environment Variables (.env)
+
+Use this structure:
+
+MYSQL_HOST=<VM IP>
+MYSQL_USER=<username>
+MYSQL_PASS=<password>
+MYSQL_DB=zainjo_watchtower
+
+API_TOKEN=<token for HTTP ingestion>
+SYSLOG_PORT=1514
+
+📦 requirements.txt
+
+Add:
+
+Flask
+flask_cors
+mysql-connector-python
+python-dateutil
+
+🧭 What I want from Replit AI now
+
+Please create the full project exactly as defined above:
+
+Create all files with complete and functioning code
+
+Use MySQL (not SQLite)
+
+Connect using .env variables
+
+Build a fully working Syslog listener
+
+Implement the full parser (CEF → KV → SYSLOG fallback)
+
+Implement full Rules Engine with real logic
+
+Implement the Dashboard (static/index.html)
+
+Ensure the project launches end-to-end by clicking “Run”
+
+Provide a full README.md explaining:
+
+How to run the project
+
+How to connect Huawei NMS to send syslog
+
+How to send logs manually over HTTP
+
+How to add users / roles / permissions
+
+How to view alerts and events
+
+Do not leave placeholders or TODOs.
+Write complete, production-ready code.
+
+📌 Project Name
+
+Use this name everywhere:
+
+ZainJo Watchtower
