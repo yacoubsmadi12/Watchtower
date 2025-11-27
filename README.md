@@ -1,66 +1,95 @@
-# ZainJo Watchtower
+# دليل تشغيل منصة ZainJo Watchtower
 
-## Operation Log Monitoring and Analysis Platform
+هذا المستند يشرح كيفية تشغيل المنصة، ربطها بالأنظمة الحقيقية، وتعديل قواعد التنبيهات.
 
-ZainJo Watchtower is a centralized monitoring system designed to ingest, parse, and analyze operation logs from Huawei NMS. It detects security incidents, forbidden operations, and anomalies in real-time.
+## 1. نظرة عامة على النظام (Architecture)
 
-## 🚀 Project Status: Prototype Mode
+يتكون النظام من جزئين رئيسيين:
 
-This project is currently running in **Mockup/Prototype Mode** on Replit.
-The frontend is fully functional and **simulates** the backend logic (Syslog ingestion, Parsing, Rules Engine) within the browser for demonstration purposes.
+1.  **الواجهة الأمامية (Frontend)**:
+    *   تعمل هنا على Replit.
+    *   تعرض البيانات، التنبيهات، والتقارير.
+    *   في الوضع الحالي (Prototype)، تقوم بمحاكاة البيانات.
 
-### 📂 Included Files for Production
+2.  **الخادم الخلفي (Backend)**:
+    *   هو الملف `server.py` الموجود في هذا المشروع.
+    *   **يجب تحميله وتشغيله على جهازك (Ubuntu VM)** وليس على Replit.
+    *   هو المسؤول عن استلام السجلات الحقيقية من Huawei NMS عبر بروتوكول Syslog (UDP 1514).
 
-While this Replit instance runs the React Frontend, I have generated the reference backend code you requested:
+---
 
-- `server.py`: The Flask backend with Syslog UDP listener and MySQL connection logic.
-- `requirements-backend.txt`: The Python dependencies required for the production backend.
+## 2. كيفية التشغيل مع البيانات الحقيقية
 
-## 🛠️ How to Run (Production)
+لتحويل النظام من "محاكاة" إلى "حقيقي"، اتبع الخطوات التالية:
 
-To deploy the full production system on your Ubuntu VM:
-
-1.  **Install Dependencies:**
+### الخطوة 1: إعداد الخادم (Ubuntu VM)
+1.  قم بتحميل الملفين `server.py` و `requirements-backend.txt` من هذا المشروع إلى جهاز الـ VM الخاص بك.
+2.  ثبت المكتبات المطلوبة:
     ```bash
     pip install -r requirements-backend.txt
     ```
-
-2.  **Configure Environment:**
-    Create a `.env` file:
-    ```bash
-    MYSQL_HOST=localhost
-    MYSQL_USER=zainjo
-    MYSQL_PASS=secure_password
-    MYSQL_DB=zainjo_watchtower
-    SYSLOG_PORT=1514
-    ```
-
-3.  **Run the Server:**
+3.  شغل الخادم:
     ```bash
     python server.py
     ```
+    *سيقوم هذا السكريبت بفتح المنفذ 1514 لاستلام السجلات.*
 
-4.  **Serve the Frontend:**
-    Build this React project (`npm run build`) and serve the `dist/` folder using Nginx or Flask.
+### الخطوة 2: ربط أنظمة Huawei
+اذهب إلى إعدادات Huawei NMS (أو أي نظام تريد مراقبته) واضبط إعدادات تصدير السجلات (Log Forwarding / Syslog) كالتالي:
+*   **IP Address**: عنوان الـ IP الخاص بجهاز الـ Ubuntu VM.
+*   **Port**: 1514
+*   **Protocol**: UDP
+*   **Format**: يفضل استخدام CEF أو التنسيق الافتراضي (CSV).
 
-## 🖥️ Prototype Features (Live Demo)
+---
 
--   **Live Log Feed**: Simulates incoming traffic from Huawei NMS (UDP/1514).
--   **Rules Engine**: Automatically detects "FORBIDDEN_OPERATION" and "SENSITIVE_OPERATION" in the browser.
--   **Alerts Panel**: Displays critical security events in real-time.
--   **Visual Dashboard**: Statistics and system status.
+## 3. كيف أحدد القواعد (Rules)؟
 
-## 🔌 Connecting Huawei NMS
+الذكاء الحقيقي للنظام يكمن في "محرك القواعد".
 
-In the production version, configure your Huawei NMS to send Syslog to:
--   **IP**: Your VM IP
--   **Port**: 1514
--   **Protocol**: UDP
--   **Format**: CEF or Key-Value
+### في النسخة الحالية (المحاكاة على Replit):
+القواعد موجودة في الملف: `client/src/lib/rules-engine.ts`.
+يمكنك تعديلها هنا لرؤية كيف ستظهر التنبيهات في الواجهة.
 
-## 🛡️ Rules Engine Logic
+**مثال على قاعدة حالية:**
+```typescript
+// إذا كانت العملية "DELETE_LOGS"
+if (parsed.operation === 'DELETE_LOGS') {
+  // أطلق تنبيه "Critical"
+  alerts.push({ severity: 'critical', rule: 'FORBIDDEN_OPERATION' ... });
+}
+```
 
-The system currently monitors for:
-1.  **Role Violations**: Users performing actions not allowed in their role.
-2.  **Sensitive Ops**: `ROOT_LOGIN`, `DB_DROP`, `CONFIG_RESET`.
-3.  **Keywords**: "Critical", "Fatal", "Error".
+### في النسخة الحقيقية (على الـ VM):
+عندما تشغل `server.py` على جهازك، يجب عليك نقل المنطق (Logic) من ملف `rules-engine.ts` (Javascript) إلى دالة `evaluate_rules` داخل `server.py` (Python).
+
+**مثال (Python):**
+```python
+def evaluate_rules(event):
+    alerts = []
+    # قاعدة: منع حذف السجلات
+    if event.get('operation') == 'DELETE_LOGS':
+        alerts.append({
+            'rule': 'FORBIDDEN_OPERATION',
+            'severity': 'critical',
+            'details': f"User {event.get('user')} tried to delete logs"
+        })
+    return alerts
+```
+
+---
+
+## 4. لوحة التحكم (Dashboard)
+
+*   **Dashboard**: نظرة عامة حية.
+*   **Alerts**: التنبيهات الأمنية الناتجة عن القواعد.
+*   **Reports**: تقارير أسبوعية توضح أداء كل نظام (Huawei NMS, BSC, OSS).
+*   **Login**: للدخول الآمن (الافتراضي: أي اسم مستخدم وكلمة مرور للتجربة).
+
+---
+
+## ملخص
+1. حمل `server.py` على سيرفرك.
+2. وجه أنظمة هواوي لترسل اللوجز لـ IP سيرفرك.
+3. عدل القواعد في `server.py` لتناسب سياساتك الأمنية.
+4. الواجهة هنا (Replit) هي للعرض فقط حالياً.
