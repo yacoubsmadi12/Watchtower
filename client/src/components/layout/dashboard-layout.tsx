@@ -1,9 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, AlertTriangle, FileText, Settings, Shield, Activity, BarChart3 } from "lucide-react";
+import { LayoutDashboard, AlertTriangle, FileText, Settings, Shield, Activity, BarChart3, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
+import { Button } from "@/components/ui/button";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const { logout, user } = useAuth();
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
@@ -40,12 +43,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="p-4 border-t border-sidebar-border">
-          <div className="flex items-center space-x-3">
-            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-            <div className="flex flex-col">
-              <span className="text-xs font-medium text-muted-foreground">System Status</span>
-              <span className="text-xs font-bold text-green-500">OPERATIONAL</span>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="h-8 w-8 rounded-full bg-primary/20 border border-primary/50 flex items-center justify-center text-xs font-bold text-primary">
+                {user?.username.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-medium text-foreground">{user?.username}</span>
+                <span className="text-[10px] text-muted-foreground uppercase">{user?.role}</span>
+              </div>
             </div>
+            <Button variant="ghost" size="icon" onClick={logout} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-xs font-medium text-green-500">SYSTEM ONLINE</span>
           </div>
         </div>
       </aside>
