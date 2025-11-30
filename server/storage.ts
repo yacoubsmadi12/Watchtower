@@ -350,4 +350,51 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+import { DbStorage } from "./db-storage";
+import { seedDatabase } from "./seed";
+
+let storageInstance: IStorage | null = null;
+
+async function getStorage(): Promise<IStorage> {
+  if (!storageInstance) {
+    if (process.env.DATABASE_URL) {
+      await seedDatabase();
+      storageInstance = new DbStorage();
+    } else {
+      storageInstance = new MemStorage();
+    }
+  }
+  return storageInstance;
+}
+
+export const storage = {
+  getUser: async (id: string) => (await getStorage()).getUser(id),
+  getUserByUsername: async (username: string) => (await getStorage()).getUserByUsername(username),
+  createUser: async (user: InsertUser) => (await getStorage()).createUser(user),
+  getAllLogSources: async () => (await getStorage()).getAllLogSources(),
+  getLogSource: async (id: string) => (await getStorage()).getLogSource(id),
+  createLogSource: async (source: InsertLogSource) => (await getStorage()).createLogSource(source),
+  updateLogSource: async (id: string, source: Partial<InsertLogSource>) => (await getStorage()).updateLogSource(id, source),
+  deleteLogSource: async (id: string) => (await getStorage()).deleteLogSource(id),
+  getAllLogEntries: async () => (await getStorage()).getAllLogEntries(),
+  getLogEntriesBySource: async (sourceId: string) => (await getStorage()).getLogEntriesBySource(sourceId),
+  createLogEntry: async (entry: InsertLogEntry) => (await getStorage()).createLogEntry(entry),
+  updateLogEntry: async (id: string, entry: Partial<InsertLogEntry>) => (await getStorage()).updateLogEntry(id, entry),
+  getAllReportTemplates: async () => (await getStorage()).getAllReportTemplates(),
+  getReportTemplate: async (id: string) => (await getStorage()).getReportTemplate(id),
+  createReportTemplate: async (template: InsertReportTemplate) => (await getStorage()).createReportTemplate(template),
+  updateReportTemplate: async (id: string, template: Partial<InsertReportTemplate>) => (await getStorage()).updateReportTemplate(id, template),
+  deleteReportTemplate: async (id: string) => (await getStorage()).deleteReportTemplate(id),
+  getAllReportRules: async () => (await getStorage()).getAllReportRules(),
+  getReportRulesByTemplate: async (templateId: string) => (await getStorage()).getReportRulesByTemplate(templateId),
+  getReportRule: async (id: string) => (await getStorage()).getReportRule(id),
+  createReportRule: async (rule: InsertReportRule) => (await getStorage()).createReportRule(rule),
+  updateReportRule: async (id: string, rule: Partial<InsertReportRule>) => (await getStorage()).updateReportRule(id, rule),
+  deleteReportRule: async (id: string) => (await getStorage()).deleteReportRule(id),
+  getAllRuleEmployees: async () => (await getStorage()).getAllRuleEmployees(),
+  getRuleEmployeesByRule: async (ruleId: string) => (await getStorage()).getRuleEmployeesByRule(ruleId),
+  createRuleEmployee: async (employee: InsertRuleEmployee) => (await getStorage()).createRuleEmployee(employee),
+  createRuleEmployeesBulk: async (employees: InsertRuleEmployee[]) => (await getStorage()).createRuleEmployeesBulk(employees),
+  deleteRuleEmployee: async (id: string) => (await getStorage()).deleteRuleEmployee(id),
+  deleteRuleEmployeesByRule: async (ruleId: string) => (await getStorage()).deleteRuleEmployeesByRule(ruleId),
+} satisfies IStorage;
