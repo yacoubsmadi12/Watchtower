@@ -42,7 +42,11 @@ export class MemStorage implements IStorage {
     
     sources.forEach(source => {
       const id = randomUUID();
-      this.logSources.set(id, { ...source, id });
+      this.logSources.set(id, { 
+        ...source, 
+        id,
+        status: source.status || "active"
+      });
     });
   }
 
@@ -73,7 +77,11 @@ export class MemStorage implements IStorage {
 
   async createLogSource(insertSource: InsertLogSource): Promise<LogSource> {
     const id = randomUUID();
-    const source: LogSource = { ...insertSource, id };
+    const source: LogSource = { 
+      ...insertSource,
+      id,
+      status: insertSource.status || "active"
+    };
     this.logSources.set(id, source);
     return source;
   }
@@ -108,7 +116,8 @@ export class MemStorage implements IStorage {
     const entry: LogEntry = { 
       ...insertEntry, 
       id, 
-      timestamp: new Date()
+      timestamp: new Date(),
+      analysisStatus: insertEntry.analysisStatus || "pending"
     };
     this.logEntries.set(id, entry);
     return entry;
