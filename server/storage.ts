@@ -29,6 +29,7 @@ export class MemStorage implements IStorage {
     this.logEntries = new Map();
     
     this.seedLogSources();
+    this.seedLogEntries();
   }
 
   private seedLogSources() {
@@ -46,6 +47,57 @@ export class MemStorage implements IStorage {
         ...source, 
         id,
         status: source.status || "active"
+      });
+    });
+  }
+
+  private seedLogEntries() {
+    const sourceIds = Array.from(this.logSources.keys());
+    if (sourceIds.length === 0) return;
+
+    const sampleLogs: Omit<InsertLogEntry, 'sourceId'>[] = [
+      {
+        severity: "info",
+        message: "User admin logged in successfully",
+        analysisStatus: "completed",
+        rawData: "CEF:0|Huawei|NMS|V1.0|100|Login|5|user=admin action=LOGIN status=success",
+      },
+      {
+        severity: "warning",
+        message: "Failed login attempt detected",
+        analysisStatus: "in-progress",
+        rawData: "CEF:0|Huawei|NMS|V1.0|101|Login Failed|7|user=unknown action=LOGIN status=failed",
+      },
+      {
+        severity: "critical",
+        message: "Unauthorized database access attempt",
+        analysisStatus: "pending",
+        rawData: "CEF:0|Huawei|NMS|V1.0|500|Security Alert|10|user=root action=DB_ACCESS status=blocked",
+      },
+      {
+        severity: "error",
+        message: "Configuration change detected without approval",
+        analysisStatus: "in-progress",
+        rawData: "Operation,Risk,ops_user,Config Change,,,Successful,Unauthorized configuration modification",
+      },
+      {
+        severity: "info",
+        message: "System health check completed successfully",
+        analysisStatus: "completed",
+        rawData: "timestamp=\"2025-11-30T06:00:00Z\" event=HEALTH_CHECK status=OK",
+      },
+    ];
+
+    sampleLogs.forEach((log, index) => {
+      const id = randomUUID();
+      const sourceId = sourceIds[index % sourceIds.length];
+      const timestamp = new Date(Date.now() - (index * 3600000));
+      this.logEntries.set(id, {
+        ...log,
+        id,
+        sourceId,
+        timestamp,
+        analysisStatus: log.analysisStatus || "pending",
       });
     });
   }

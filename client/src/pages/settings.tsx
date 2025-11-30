@@ -46,11 +46,7 @@ export default function SettingsPage() {
 
   const createSourceMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      return apiRequest("/api/sources", {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
+      return apiRequest("POST", "/api/sources", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
@@ -72,11 +68,7 @@ export default function SettingsPage() {
 
   const updateSourceMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<typeof formData> }) => {
-      return apiRequest(`/api/sources/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
+      return apiRequest("PUT", `/api/sources/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
@@ -99,9 +91,7 @@ export default function SettingsPage() {
 
   const deleteSourceMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/sources/${id}`, {
-        method: "DELETE",
-      });
+      return apiRequest("DELETE", `/api/sources/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
