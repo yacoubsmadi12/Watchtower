@@ -46,7 +46,8 @@ export class MemStorage implements IStorage {
       this.logSources.set(id, { 
         ...source, 
         id,
-        status: source.status || "active"
+        status: source.status || "active",
+        description: source.description || null
       });
     });
   }
@@ -98,6 +99,7 @@ export class MemStorage implements IStorage {
         sourceId,
         timestamp,
         analysisStatus: log.analysisStatus || "pending",
+        rawData: log.rawData || null
       });
     });
   }
@@ -132,7 +134,8 @@ export class MemStorage implements IStorage {
     const source: LogSource = { 
       ...insertSource,
       id,
-      status: insertSource.status || "active"
+      status: insertSource.status || "active",
+      description: insertSource.description || null
     };
     this.logSources.set(id, source);
     return source;
@@ -169,7 +172,8 @@ export class MemStorage implements IStorage {
       ...insertEntry, 
       id, 
       timestamp: new Date(),
-      analysisStatus: insertEntry.analysisStatus || "pending"
+      analysisStatus: insertEntry.analysisStatus || "pending",
+      rawData: insertEntry.rawData || null
     };
     this.logEntries.set(id, entry);
     return entry;
