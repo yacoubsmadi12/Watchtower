@@ -1,4 +1,11 @@
-import { type User, type InsertUser, type LogSource, type InsertLogSource, type LogEntry, type InsertLogEntry } from "@shared/schema";
+import { 
+  type User, type InsertUser, 
+  type LogSource, type InsertLogSource, 
+  type LogEntry, type InsertLogEntry,
+  type ReportTemplate, type InsertReportTemplate,
+  type ReportRule, type InsertReportRule,
+  type RuleEmployee, type InsertRuleEmployee
+} from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -16,17 +23,43 @@ export interface IStorage {
   getLogEntriesBySource(sourceId: string): Promise<LogEntry[]>;
   createLogEntry(entry: InsertLogEntry): Promise<LogEntry>;
   updateLogEntry(id: string, entry: Partial<InsertLogEntry>): Promise<LogEntry | undefined>;
+
+  getAllReportTemplates(): Promise<ReportTemplate[]>;
+  getReportTemplate(id: string): Promise<ReportTemplate | undefined>;
+  createReportTemplate(template: InsertReportTemplate): Promise<ReportTemplate>;
+  updateReportTemplate(id: string, template: Partial<InsertReportTemplate>): Promise<ReportTemplate | undefined>;
+  deleteReportTemplate(id: string): Promise<boolean>;
+
+  getAllReportRules(): Promise<ReportRule[]>;
+  getReportRulesByTemplate(templateId: string): Promise<ReportRule[]>;
+  getReportRule(id: string): Promise<ReportRule | undefined>;
+  createReportRule(rule: InsertReportRule): Promise<ReportRule>;
+  updateReportRule(id: string, rule: Partial<InsertReportRule>): Promise<ReportRule | undefined>;
+  deleteReportRule(id: string): Promise<boolean>;
+
+  getAllRuleEmployees(): Promise<RuleEmployee[]>;
+  getRuleEmployeesByRule(ruleId: string): Promise<RuleEmployee[]>;
+  createRuleEmployee(employee: InsertRuleEmployee): Promise<RuleEmployee>;
+  createRuleEmployeesBulk(employees: InsertRuleEmployee[]): Promise<RuleEmployee[]>;
+  deleteRuleEmployee(id: string): Promise<boolean>;
+  deleteRuleEmployeesByRule(ruleId: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private logSources: Map<string, LogSource>;
   private logEntries: Map<string, LogEntry>;
+  private reportTemplates: Map<string, ReportTemplate>;
+  private reportRules: Map<string, ReportRule>;
+  private ruleEmployees: Map<string, RuleEmployee>;
 
   constructor() {
     this.users = new Map();
     this.logSources = new Map();
     this.logEntries = new Map();
+    this.reportTemplates = new Map();
+    this.reportRules = new Map();
+    this.ruleEmployees = new Map();
     
     this.seedLogSources();
     this.seedLogEntries();
@@ -186,6 +219,129 @@ export class MemStorage implements IStorage {
     const updatedEntry = { ...entry, ...updates };
     this.logEntries.set(id, updatedEntry);
     return updatedEntry;
+  }
+
+  async getAllReportTemplates(): Promise<ReportTemplate[]> {
+    return Array.from(this.reportTemplates.values()).sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async getReportTemplate(id: string): Promise<ReportTemplate | undefined> {
+    return this.reportTemplates.get(id);
+  }
+
+  async createReportTemplate(insertTemplate: InsertReportTemplate): Promise<ReportTemplate> {
+    const id = randomUUID();
+    const template: ReportTemplate = { 
+      ...insertTemplate,
+      id,
+      createdAt: new Date(),
+      schedule: insertTemplate.schedule || "weekly"
+    };
+    this.reportTemplates.set(id, template);
+    return template;
+  }
+
+  async updateReportTemplate(id: string, updates: Partial<InsertReportTemplate>): Promise<ReportTemplate | undefined> {
+    const template = this.reportTemplates.get(id);
+    if (!template) return undefined;
+    
+    const updatedTemplate = { ...template, ...updates };
+    this.reportTemplates.set(id, updatedTemplate);
+    return updatedTemplate;
+  }
+
+  async deleteReportTemplate(id: string): Promise<boolean> {
+    const rules = await this.getReportRulesByTemplate(id);
+    for (const rule of rules) {
+      await this.deleteRuleEmployeesByRule(rule.id);
+      await this.deleteReportRule(rule.id);
+    }
+    return this.reportTemplates.delete(id);
+  }
+
+  async getAllReportRules(): Promise<ReportRule[]> {
+    return Array.from(this.reportRules.values()).sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async getReportRulesByTemplate(templateId: string): Promise<ReportRule[]> {
+    return Array.from(this.reportRules.values())
+      .filter(rule => rule.templateId === templateId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getReportRule(id: string): Promise<ReportRule | undefined> {
+    return this.reportRules.get(id);
+  }
+
+  async createReportRule(insertRule: InsertReportRule): Promise<ReportRule> {
+    const id = randomUUID();
+    const rule: ReportRule = { 
+      ...insertRule,
+      id,
+      createdAt: new Date()
+    };
+    this.reportRules.set(id, rule);
+    return rule;
+  }
+
+  async updateReportRule(id: string, updates: Partial<InsertReportRule>): Promise<ReportRule | undefined> {
+    const rule = this.reportRules.get(id);
+    if (!rule) return undefined;
+    
+    const updatedRule = { ...rule, ...updates };
+    this.reportRules.set(id, updatedRule);
+    return updatedRule;
+  }
+
+  async deleteReportRule(id: string): Promise<boolean> {
+    await this.deleteRuleEmployeesByRule(id);
+    return this.reportRules.delete(id);
+  }
+
+  async getAllRuleEmployees(): Promise<RuleEmployee[]> {
+    return Array.from(this.ruleEmployees.values());
+  }
+
+  async getRuleEmployeesByRule(ruleId: string): Promise<RuleEmployee[]> {
+    return Array.from(this.ruleEmployees.values())
+      .filter(emp => emp.ruleId === ruleId);
+  }
+
+  async createRuleEmployee(insertEmployee: InsertRuleEmployee): Promise<RuleEmployee> {
+    const id = randomUUID();
+    const employee: RuleEmployee = { 
+      ...insertEmployee,
+      id,
+      createdAt: new Date(),
+      permissions: insertEmployee.permissions || null
+    };
+    this.ruleEmployees.set(id, employee);
+    return employee;
+  }
+
+  async createRuleEmployeesBulk(employees: InsertRuleEmployee[]): Promise<RuleEmployee[]> {
+    const results: RuleEmployee[] = [];
+    for (const emp of employees) {
+      const created = await this.createRuleEmployee(emp);
+      results.push(created);
+    }
+    return results;
+  }
+
+  async deleteRuleEmployee(id: string): Promise<boolean> {
+    return this.ruleEmployees.delete(id);
+  }
+
+  async deleteRuleEmployeesByRule(ruleId: string): Promise<boolean> {
+    const employees = await this.getRuleEmployeesByRule(ruleId);
+    for (const emp of employees) {
+      this.ruleEmployees.delete(emp.id);
+    }
+    return true;
   }
 }
 
