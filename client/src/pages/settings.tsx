@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Save, Server, Shield, RefreshCw, Plus, Trash2, Edit } from "lucide-react";
+import { Save, Server, Shield, RefreshCw, Plus, Trash2, Edit, Upload, FileText } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { LogSource } from "@shared/schema";
@@ -39,6 +39,9 @@ export default function SettingsPage() {
     status: "inactive",
     description: "",
   });
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [selectedSourceForUpload, setSelectedSourceForUpload] = useState<LogSource | null>(null);
+  const [csvContent, setCsvContent] = useState("");
 
   const { data: sources = [], isLoading } = useQuery<LogSource[]>({
     queryKey: ["/api/sources"],
@@ -108,6 +111,53 @@ export default function SettingsPage() {
       });
     },
   });
+
+  const uploadCsvMutation = useMutation({
+    mutationFn: async ({ sourceId, csvContent }: { sourceId: string; csvContent: string }) => {
+      return apiRequest("POST", "/api/logs/upload-csv", { sourceId, csvContent });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
+      setUploadDialogOpen(false);
+      setCsvContent("");
+      setSelectedSourceForUpload(null);
+      toast({
+        title: "Logs Uploaded Successfully",
+        description: `Processed ${data.summary?.processed || 0} log entries. Source is now ${data.sourceStatus || 'active'}.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to upload CSV logs",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleUploadClick = (source: LogSource) => {
+    setSelectedSourceForUpload(source);
+    setCsvContent("");
+    setUploadDialogOpen(true);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setCsvContent(event.target?.result as string || "");
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleUploadSubmit = () => {
+    if (selectedSourceForUpload && csvContent) {
+      uploadCsvMutation.mutate({ sourceId: selectedSourceForUpload.id, csvContent });
+    }
+  };
 
   const handleSubmit = () => {
     if (editingSource) {
@@ -264,6 +314,15 @@ export default function SettingsPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          onClick={() => handleUploadClick(source)}
+                          data-testid={`button-upload-source-${source.id}`}
+                          title="Upload CSV Logs"
+                        >
+                          <Upload className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={() => handleEdit(source)}
                           data-testid={`button-edit-source-${source.id}`}
                         >
@@ -285,6 +344,62 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* CSV Upload Dialog */}
+          <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Upload Logs to {selectedSourceForUpload?.name}
+                </DialogTitle>
+                <DialogDescription>
+                  Upload a Huawei operation log CSV file to import logs into this source.
+                  The source will become active once logs are received.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="csv-file">Select CSV File</Label>
+                  <Input
+                    id="csv-file"
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileSelect}
+                    className="cursor-pointer"
+                    data-testid="input-csv-file"
+                  />
+                </div>
+                {csvContent && (
+                  <div className="space-y-2">
+                    <Label>Preview (first 500 characters)</Label>
+                    <div className="p-3 bg-muted rounded-md text-xs font-mono max-h-32 overflow-auto">
+                      {csvContent.slice(0, 500)}
+                      {csvContent.length > 500 && '...'}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      File size: {Math.round(csvContent.length / 1024)} KB
+                    </p>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setUploadDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleUploadSubmit}
+                  disabled={!csvContent || uploadCsvMutation.isPending}
+                  data-testid="button-submit-upload"
+                >
+                  {uploadCsvMutation.isPending ? "Uploading..." : "Upload Logs"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Connection Settings */}
           <Card className="bg-sidebar/30 border-sidebar-border">

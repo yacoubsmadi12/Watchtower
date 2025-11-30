@@ -1,8 +1,99 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertLogSourceSchema, insertLogEntrySchema, insertReportTemplateSchema, insertReportRuleSchema, insertRuleEmployeeSchema } from "@shared/schema";
+import { insertLogSourceSchema, insertLogEntrySchema, insertReportTemplateSchema, insertReportRuleSchema, insertRuleEmployeeSchema, type InsertLogEntry } from "@shared/schema";
 import { z } from "zod";
+
+function parseCSVField(value: string): string {
+  if (!value) return '';
+  let result = value.trim();
+  if (result.startsWith('"') && result.endsWith('"')) {
+    result = result.slice(1, -1);
+  }
+  result = result.replace(/""/g, '"');
+  return result.replace(/^\t+/, '').trim();
+}
+
+function parseHuaweiCSVLine(line: string): { 
+  operation: string; 
+  level: string; 
+  operator: string; 
+  time: string; 
+  source: string; 
+  terminalIp: string; 
+  operationObject: string; 
+  result: string; 
+  details: string; 
+} | null {
+  if (!line.trim() || line.startsWith('Operation,') || line.startsWith('\ufeffOperation,')) return null;
+  
+  const parts: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      parts.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  parts.push(current);
+  
+  if (parts.length < 8) return null;
+  
+  return {
+    operation: parseCSVField(parts[0]),
+    level: parseCSVField(parts[1]),
+    operator: parseCSVField(parts[2]),
+    time: parseCSVField(parts[3]),
+    source: parseCSVField(parts[4]),
+    terminalIp: parseCSVField(parts[5]),
+    operationObject: parseCSVField(parts[6]),
+    result: parseCSVField(parts[7]),
+    details: parseCSVField(parts.slice(8).join(','))
+  };
+}
+
+function determineSeverity(level: string, result: string): 'info' | 'warning' | 'error' | 'critical' {
+  const lowerLevel = level.toLowerCase();
+  const lowerResult = result.toLowerCase();
+  
+  if (lowerResult.includes('failed') || lowerResult.includes('deny')) {
+    if (lowerLevel.includes('major') || lowerLevel.includes('critical')) return 'critical';
+    if (lowerLevel.includes('warning')) return 'error';
+    return 'warning';
+  }
+  
+  if (lowerLevel.includes('critical') || lowerLevel.includes('risk')) return 'critical';
+  if (lowerLevel.includes('major')) return 'error';
+  if (lowerLevel.includes('warning')) return 'warning';
+  return 'info';
+}
+
+function generateAnalysisMessage(parsed: ReturnType<typeof parseHuaweiCSVLine>): string {
+  if (!parsed) return 'Unknown log entry';
+  
+  const { operation, operator, result, operationObject, terminalIp } = parsed;
+  const user = operator || 'system';
+  
+  if (result.toLowerCase().includes('failed')) {
+    return `[FAILED] ${operation} by ${user} on ${operationObject} from ${terminalIp}`;
+  }
+  if (result.toLowerCase().includes('deny')) {
+    return `[DENIED] ${operation} by ${user} - device does not exist: ${operationObject}`;
+  }
+  return `${operation} by ${user} on ${operationObject} - ${result}`;
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -97,6 +188,95 @@ export async function registerRoutes(
       res.json(entry);
     } catch (error) {
       res.status(500).json({ error: "Failed to update log entry" });
+    }
+  });
+
+  app.post("/api/logs/upload-csv", async (req, res) => {
+    try {
+      const { sourceId, csvContent } = req.body;
+      
+      if (!sourceId || !csvContent) {
+        res.status(400).json({ error: "sourceId and csvContent are required" });
+        return;
+      }
+      
+      const source = await storage.getLogSource(sourceId);
+      if (!source) {
+        res.status(404).json({ error: "Log source not found" });
+        return;
+      }
+      
+      const lines = csvContent.split('\n');
+      const createdEntries: any[] = [];
+      const errors: string[] = [];
+      let successCount = 0;
+      let failedCount = 0;
+      
+      let skippedLines = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line.trim()) continue;
+        
+        const parsed = parseHuaweiCSVLine(line);
+        if (!parsed) {
+          skippedLines++;
+          if (i > 0) {
+            errors.push(`Line ${i + 1}: Could not parse CSV format (insufficient fields or header line)`);
+          }
+          continue;
+        }
+        
+        try {
+          const severity = determineSeverity(parsed.level, parsed.result);
+          const message = generateAnalysisMessage(parsed);
+          
+          const analysisStatus = parsed.result.toLowerCase().includes('successful') 
+            ? 'completed' 
+            : 'pending';
+          
+          const rawData = JSON.stringify({
+            operation: parsed.operation,
+            level: parsed.level,
+            operator: parsed.operator,
+            time: parsed.time,
+            source: parsed.source,
+            terminalIp: parsed.terminalIp,
+            operationObject: parsed.operationObject,
+            result: parsed.result,
+            details: parsed.details
+          });
+          
+          const entry: InsertLogEntry = {
+            sourceId,
+            severity,
+            message,
+            analysisStatus,
+            rawData
+          };
+          
+          const created = await storage.createLogEntry(entry);
+          createdEntries.push(created);
+          successCount++;
+        } catch (err) {
+          errors.push(`Line ${i + 1}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+          failedCount++;
+        }
+      }
+      
+      res.status(201).json({
+        success: true,
+        summary: {
+          total: lines.length,
+          processed: successCount,
+          failed: failedCount,
+          skipped: skippedLines
+        },
+        sourceStatus: (await storage.getLogSource(sourceId))?.status,
+        errors: errors.length > 0 ? errors.slice(0, 20) : undefined,
+        message: `Successfully processed ${successCount} log entries. Source status: ${(await storage.getLogSource(sourceId))?.status}`
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to process CSV upload" });
     }
   });
 
