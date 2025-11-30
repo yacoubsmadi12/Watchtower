@@ -36,7 +36,7 @@ export default function SettingsPage() {
   const [formData, setFormData] = useState({
     name: "",
     ipAddress: "",
-    status: "active",
+    status: "inactive",
     description: "",
   });
 
@@ -51,7 +51,7 @@ export default function SettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       setIsDialogOpen(false);
-      setFormData({ name: "", ipAddress: "", status: "active", description: "" });
+      setFormData({ name: "", ipAddress: "", status: "inactive", description: "" });
       toast({
         title: "Source Added",
         description: "Log source has been successfully added",
@@ -74,7 +74,7 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       setIsDialogOpen(false);
       setEditingSource(null);
-      setFormData({ name: "", ipAddress: "", status: "active", description: "" });
+      setFormData({ name: "", ipAddress: "", status: "inactive", description: "" });
       toast({
         title: "Source Updated",
         description: "Log source has been successfully updated",
@@ -130,7 +130,7 @@ export default function SettingsPage() {
 
   const handleAddNew = () => {
     setEditingSource(null);
-    setFormData({ name: "", ipAddress: "", status: "active", description: "" });
+    setFormData({ name: "", ipAddress: "", status: "inactive", description: "" });
     setIsDialogOpen(true);
   };
 

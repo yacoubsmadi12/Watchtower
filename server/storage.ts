@@ -62,16 +62,15 @@ export class MemStorage implements IStorage {
     this.ruleEmployees = new Map();
     
     this.seedLogSources();
-    this.seedLogEntries();
   }
 
   private seedLogSources() {
     const sources: InsertLogSource[] = [
-      { name: "NCE FAN HQ", ipAddress: "10.119.19.95", status: "active", description: "NCE FAN HQ System" },
-      { name: "NCE IP +T", ipAddress: "10.119.19.80", status: "active", description: "NCE IP +T System" },
-      { name: "NCE HOME_INSIGHT", ipAddress: "10.119.21.6", status: "active", description: "NCE HOME_INSIGHT System" },
-      { name: "U2020", ipAddress: "10.119.10.4", status: "active", description: "U2020 System" },
-      { name: "PRS", ipAddress: "10.119.10.104", status: "active", description: "PRS System" },
+      { name: "NCE FAN HQ", ipAddress: "10.119.19.95", status: "inactive", description: "NCE FAN HQ System" },
+      { name: "NCE IP +T", ipAddress: "10.119.19.80", status: "inactive", description: "NCE IP +T System" },
+      { name: "NCE HOME_INSIGHT", ipAddress: "10.119.21.6", status: "inactive", description: "NCE HOME_INSIGHT System" },
+      { name: "U2020", ipAddress: "10.119.10.4", status: "inactive", description: "U2020 System" },
+      { name: "PRS", ipAddress: "10.119.10.104", status: "inactive", description: "PRS System" },
     ];
     
     sources.forEach(source => {
@@ -167,7 +166,7 @@ export class MemStorage implements IStorage {
     const source: LogSource = { 
       ...insertSource,
       id,
-      status: insertSource.status || "active",
+      status: insertSource.status || "inactive",
       description: insertSource.description || null
     };
     this.logSources.set(id, source);
@@ -209,6 +208,12 @@ export class MemStorage implements IStorage {
       rawData: insertEntry.rawData || null
     };
     this.logEntries.set(id, entry);
+    
+    const source = this.logSources.get(insertEntry.sourceId);
+    if (source && source.status !== "active") {
+      this.logSources.set(insertEntry.sourceId, { ...source, status: "active" });
+    }
+    
     return entry;
   }
 
